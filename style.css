@@ -1,0 +1,173 @@
+body {
+  font-family: monospace;
+}
+
+input:focus {
+  outline: none;
+}
+
+input {
+  color: #333333;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#app {
+    display: flex;
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.list-wrapper {
+  margin:10px;
+  border-radius: 10px;
+  padding-left:15px;
+}
+
+.hidden {
+  opacity: 0;
+}
+
+.todo-list {
+  list-style-type: none;
+  padding: 10px;
+  width: auto;
+  margin:20px;
+}
+
+.done {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.delete {
+  float: right;
+  height: 100%;
+  width: auto;
+} 
+
+.delete:hover {
+  cursor: not-allowed;
+}
+
+.new-todo {
+  width: 100%;
+}
+
+.add-list {
+    background-color: #f692a3;
+    color:white;
+    border: none;
+    font-weight: bold;
+    margin: 30px;
+    font-size: 20px;
+    padding: 10px 15px;
+    border-radius: 100px;
+}
+
+.list-handler {
+    margin-left: -30px;
+    margin-bottom: -68px;
+}
+
+input[type="color" i] {
+  border-radius: 50%;
+  inline-size: 25px;
+  block-size: 25px;
+  padding: 5px;
+  border-width: 0px;
+  border-style: none;
+  border-color: none;
+  margin:1px;
+  border:none;
+  background-color: transparent;
+}
+
+/* Affects area between outer circle and color swatch. Firefox doesn't have an equivalent. */
+input[type="color" i]::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+
+/* Affects the inner circle, i.e. the current color selection */
+input[type="color" i]::-webkit-color-swatch {
+  border-radius: 50%;
+}
+
+input[type="color" i]::-moz-color-swatch {
+  border-radius: 50%;
+}
+
+.delete-list {
+    background-color: #FAFAFA;
+    border: none;
+    color:#f692a3;
+    margin: 2px;
+    font-size: 10px;
+    padding: 5px 8px;
+    border-radius: 100px;
+    
+    cursor: pointer;
+}
+
+.trash-drop {
+  //border: 2px dashed #ccc !important;
+  //text-align: center;
+  //color: #e33;
+}
+
+.trash-drop:-moz-drag-over {
+  border: 2px solid red;
+}
+
+.todo-item {
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 14px 8px;
+  margin:5px;
+  background-color: #fff;
+  width: max-content;
+}
+
+.checked input {
+  color:#AAAAAA !important;
+}
+
+.todo-item input {
+  border:none;
+  font-size:16px;
+}
+
+.todo-item:nth-child(2) input {
+  font-weight: bold !important;
+}
+
+.remove-item {
+  float: right;
+  color: #f692a3;
+  opacity: 0.5;
+  cursor:pointer;
+  //font-size: 15px;
+}
+
+.todo-item:hover .remove-item {
+  opacity: 1;
+
+}
+
+
+.input-wrap {
+  position: relative;
+}
+.input-wrap .input {
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+.width-machine {
+  /*   Sort of a magic number to add extra space for number spinner */
+  padding: 0 1rem;
+}
