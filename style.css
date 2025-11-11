@@ -132,6 +132,10 @@ input[type="color" i]::-moz-color-swatch {
   width: max-content;
 }
 
+.listId-decent {
+  color: #AAAAAA;
+}
+
 .checked input {
   color:#AAAAAA !important;
 }

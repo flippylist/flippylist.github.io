@@ -33,7 +33,12 @@ function getOnline(id, callback){
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }})
-        .then(function(res){ callback(res.json()) })
+        .then(function(res){ 
+          return res.json()
+           })
+        .then(function(json) {
+          callback(json)
+        })
         .catch(e => {
           console.log(e)
         })
@@ -51,11 +56,26 @@ const app = new Vue({
   },
   methods: {
     addList() {
+
+      var self  =this;
       //var listName = prompt('List name')
 
-      var listId = randomId()
+      var promptData = prompt('Enter id or leave blank for new list');
 
-      if(!this.lists[listId]) Vue.set(this.lists, listId, [{title:"...", bg:""}])//[{title:"sf", done:false}]
+      var listId = promptData || randomId();
+
+      if(!this.lists[listId]) {
+        if(promptData)  // taken from online
+        {
+          getOnline(listId, data => {
+            try {
+                    Vue.set(self.lists, listId, data)
+                  } catch(e) {
+                    console.log(e)
+                  }
+          })
+        } else Vue.set(this.lists, listId, [{title:"...", bg:""}])//[{title:"sf", done:false}]
+      } 
       else alert('name already exists')
 
     },
@@ -114,6 +134,33 @@ const app = new Vue({
       } else {
         this.lists[listId].splice(to, 0, this.lists[listId].splice(from, 1)[0]);
       }
+    },
+    fetchOnlineLists(){
+
+    var self = this;
+
+
+     //Vue.nextTick(function () {
+          var lists = liststorage.fetch();
+          Object.keys(lists).forEach(listId => {
+            if(lists[listId][0]){
+              if(lists[listId][0].online){
+
+                getOnline(listId, data => {
+                  console.log('listdataonline', data, listId, self.$data)
+                  try {
+                    self.lists[listId] = data
+                  } catch(e) {
+                    console.log(e)
+                  }
+                  
+                })
+
+              }
+            }
+
+          })
+        //})
     }
   },
   computed: {
@@ -137,7 +184,8 @@ const app = new Vue({
               if(JSON.stringify(lists[listKey]) != JSON.stringify(tmpLists[listKey]))
               {
                 console.log(lists[listKey])
-                saveOnline(listKey, lists[listKey])
+                if((lists[listKey][0] || {}).online)
+                  saveOnline(listKey, lists[listKey])
               }
             }
           })
@@ -148,7 +196,7 @@ const app = new Vue({
       deep: true
     }
   }, 
-  mounted: ()=>{
+  mounted(){
     try {
       let el = document.querySelector(".input-wrap .input");
       let widthMachine = document.querySelector(".input-wrap .width-machine");
@@ -157,13 +205,6 @@ const app = new Vue({
       });
     } catch(e){}
 
-    var self = this;
-
-    var lists = liststorage.fetch();
-    Object.keys(lists).forEach(listId => {
-      self.getOnline(listId, data => {
-        console.log('listdataonline', data)
-      })
-    })
+    this.fetchOnlineLists();
   }
 });
