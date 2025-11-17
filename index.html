@@ -51,7 +51,7 @@
     <li class="todo-item">
       <input type="checkbox" disabled />
 
-      <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{newItemMap[listId]}}</span><input placeholder="..." class="input" v-model="newItemMap[listId]" @keyup.enter="addItem(listId)" type="text"></span>
+      <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{newItemMap[listId]}}</span><input placeholder="..." class="input" v-model="newItemMap[listId]" @keyup.enter="addItem(listId)" type="text"></span> <span v-if="newItemMap[listId]">&crarr;</span>
     </li>
 
   </ul>
