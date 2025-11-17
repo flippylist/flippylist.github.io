@@ -60,21 +60,22 @@ const app = new Vue({
       var self  =this;
       //var listName = prompt('List name')
 
-      var promptData = prompt('Enter id or leave blank for new list');
+      var promptData = prompt('Enter name for new list or id to add shared list');
 
       var listId = promptData || randomId();
 
       if(!this.lists[listId]) {
-        if(promptData)  // taken from online
+        if(promptData.length == 6)  // taken from online
         {
           getOnline(listId, data => {
             try {
                     Vue.set(self.lists, listId, data)
                   } catch(e) {
                     console.log(e)
+                    Vue.set(self.lists, listId, [{title:listId, bg:""}])
                   }
           })
-        } else Vue.set(this.lists, listId, [{title:"...", bg:""}])//[{title:"sf", done:false}]
+        } else Vue.set(this.lists, listId, [{title:listId, bg:""}])//[{title:"sf", done:false}]
       } 
       else alert('name already exists')
 
