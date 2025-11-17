@@ -30,8 +30,8 @@
         <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{list[0].title}}</span><input class="input" v-model=" list[0].title" type="text"></span>
 
         <span class="listId-decent">
-          <i class="fa fa-link" style="font-size: 12px;cursor:pointer" aria-hidden="true" v-if="list[0].online" v-on:click="list[0].online = !list[0].online"></i> 
-          <i class="fa fa-link-slash" style="font-size: 12px;color:#CCCCCC;cursor:pointer" aria-hidden="true" v-if="!list[0].online" v-on:click="list[0].online = !list[0].online"></i> 
+          <i class="fa fa-link" style="font-size: 12px;cursor:pointer" aria-hidden="true" v-if="list[0].online" v-on:click="toggleOnline(list, false)"></i> 
+          <i class="fa fa-link-slash" style="font-size: 12px;color:#CCCCCC;cursor:pointer" aria-hidden="true" v-if="!list[0].online" v-on:click="toggleOnline(list, true)"></i> 
           <span v-if="list[0].online">{{listId}}</span>
         </span>
     </li>

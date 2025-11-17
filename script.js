@@ -82,6 +82,9 @@ const app = new Vue({
       else alert('name already exists')
 
     },
+    toggleOnline(list, value){
+      Vue.set(list[0], 'online',  value);
+    },
     removeList(listId){
       if(confirm('Delete list?'))
         Vue.delete(this.lists, listId);
