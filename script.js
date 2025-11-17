@@ -69,6 +69,8 @@ const app = new Vue({
         {
           getOnline(listId, data => {
             try {
+                    if(data.error) return Vue.set(self.lists, listId, [{title:listId, bg:""}])
+
                     Vue.set(self.lists, listId, data)
                   } catch(e) {
                     console.log(e)
