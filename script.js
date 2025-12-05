@@ -62,7 +62,9 @@ const app = new Vue({
 
       var promptData = prompt('Enter name for new list or id to add shared list');
 
-      var listId = promptData || randomId();
+      var listId = randomId();
+
+      if(promptData.length == 6) listId = promptData;
 
       if(!this.lists[listId]) {
         if(promptData.length == 6)  // taken from online
