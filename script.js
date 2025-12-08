@@ -79,7 +79,7 @@ const app = new Vue({
                     Vue.set(self.lists, listId, [{title:listId, bg:""}])
                   }
           })
-        } else Vue.set(this.lists, listId, [{title:listId, bg:""}])//[{title:"sf", done:false}]
+        } else Vue.set(this.lists, listId, [{title:promptData, bg:""}])//[{title:"sf", done:false}]
       } 
       else alert('name already exists')
 
@@ -187,7 +187,6 @@ const app = new Vue({
 
           liststorage.save(lists);
 
-
           Object.keys(lists).forEach(listKey => {
             if(tmpLists[listKey]){
               if(JSON.stringify(lists[listKey]) != JSON.stringify(tmpLists[listKey]))
@@ -199,7 +198,7 @@ const app = new Vue({
             }
           })
 
-        },700)
+        },500)
         
       },
       deep: true
