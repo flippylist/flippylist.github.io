@@ -62,7 +62,9 @@ const app = new Vue({
 
       var promptData = prompt('Enter name for new list or id to add shared list');
 
-      var listId = promptData || randomId();
+      var listId = randomId();
+
+      if(promptData.length == 6) listId = promptData;
 
       if(!this.lists[listId]) {
         if(promptData.length == 6)  // taken from online
@@ -77,7 +79,7 @@ const app = new Vue({
                     Vue.set(self.lists, listId, [{title:listId, bg:""}])
                   }
           })
-        } else Vue.set(this.lists, listId, [{title:listId, bg:""}])//[{title:"sf", done:false}]
+        } else Vue.set(this.lists, listId, [{title:promptData, bg:""}])//[{title:"sf", done:false}]
       } 
       else alert('name already exists')
 
@@ -155,7 +157,8 @@ const app = new Vue({
                 getOnline(listId, data => {
                   console.log('listdataonline', data, listId, self.$data)
                   try {
-                    self.lists[listId] = data
+                    if (!data.hasOwnProperty('error'))
+                      self.lists[listId] = data
                   } catch(e) {
                     console.log(e)
                   }
@@ -184,7 +187,6 @@ const app = new Vue({
 
           liststorage.save(lists);
 
-
           Object.keys(lists).forEach(listKey => {
             if(tmpLists[listKey]){
               if(JSON.stringify(lists[listKey]) != JSON.stringify(tmpLists[listKey]))
@@ -196,7 +198,7 @@ const app = new Vue({
             }
           })
 
-        },700)
+        },500)
         
       },
       deep: true
