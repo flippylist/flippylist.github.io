@@ -157,7 +157,8 @@ const app = new Vue({
                 getOnline(listId, data => {
                   console.log('listdataonline', data, listId, self.$data)
                   try {
-                    self.lists[listId] = data
+                    if (!data.hasOwnProperty('error'))
+                      self.lists[listId] = data
                   } catch(e) {
                     console.log(e)
                   }
