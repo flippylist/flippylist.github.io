@@ -21,20 +21,17 @@
 
   <ul class="todo-list" >
     
-    <div class="list-handler">
-      <button class="delete-list" v-on:click="removeList(listId)">X</button>
-      <br>
-      <input type="color" id="foreground" name="foreground" v-model="(list[0] || {}).bg" value="#e66465" />
-    
-    </div>
-
-    <li class="todo-item" style="border:none !important;" v-if="list.length>0">
+    <li class="todo-item" style="border:none !important;padding-top:6px" v-if="list.length>0">
       
       <!--i class="fa fa-bars"></i-->
 
         <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{list[0].title}}</span><input class="input" v-model=" list[0].title" type="text"></span>
 
         <span class="listId-decent">
+          <button class="delete-list" v-on:click="removeList(listId)">X</button>
+          
+          <input type="color" id="foreground" name="foreground" v-model="(list[0] || {}).bg" value="#e66465" />
+
           <i class="fa fa-link" style="font-size: 12px;cursor:pointer" aria-hidden="true" v-if="list[0].online" v-on:click="toggleOnline(list, false)"></i> 
           <i class="fa fa-link-slash" style="font-size: 12px;color:#CCCCCC;cursor:pointer" aria-hidden="true" v-if="!list[0].online" v-on:click="toggleOnline(list, true)"></i> 
           <span v-if="list[0].online">{{listId}}</span>

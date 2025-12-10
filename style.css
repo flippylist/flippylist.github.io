@@ -23,9 +23,8 @@ input {
 }
 
 .list-wrapper {
-  margin:10px;
+  margin:5px;
   border-radius: 10px;
-  padding-left:15px;
 }
 
 .hidden {
@@ -102,12 +101,12 @@ input[type="color" i]::-moz-color-swatch {
 }
 
 .delete-list {
-    background-color: #FAFAFA;
+    background-color: transparent;
     border: none;
     color:#f692a3;
     margin: 2px;
     font-size: 10px;
-    padding: 5px 8px;
+    //padding: 5px 8px;
     border-radius: 100px;
     
     cursor: pointer;
@@ -145,7 +144,7 @@ input[type="color" i]::-moz-color-swatch {
   font-size:16px;
 }
 
-.todo-item:nth-child(2) input {
+.todo-item:nth-child(1) input {
   font-weight: bold !important;
 }
 
@@ -165,6 +164,7 @@ input[type="color" i]::-moz-color-swatch {
 
 .input-wrap {
   position: relative;
+  display: inline-block;
 }
 .input-wrap .input {
   position: absolute;
