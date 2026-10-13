@@ -53,13 +53,13 @@ const app = new Vue({
         this.$listSync.publish(listId);
       }
     },
-    resolveList(listId, version) {
-      if (confirm('Use this version for everyone? The other saved versions will remain in the history.')) {
-        this.$listSync.resolve(listId, version);
+    resolveList(listId) {
+      if (confirm('Replace the online list with this device’s current copy? This cannot be undone.')) {
+        this.$listSync.resolve(listId);
       }
     },
     loadOnlineCopy(listId) {
-      if (confirm('Replace this device’s list with the online copy? Your current copy will be kept in the recovery backup.')) {
+      if (confirm('Replace this device’s list with the online copy? Your unsent edits will be lost.')) {
         this.$listSync.load(listId, true);
       }
     },
@@ -69,7 +69,7 @@ const app = new Vue({
       if (state.deleting) return;
       const remote = state.deletePending || !state.unpublished || state.attempted || this.lists[listId][0].online;
       if (confirm(remote
-        ? 'Delete this list from this device and delete all its online contents and history? Other devices keep their own copies but can no longer sync this ID.'
+        ? 'Delete this list from this device and delete its online copy? Other devices keep their own copies but can no longer sync this ID.'
         : 'Delete this local list?')) return this.$listSync.remove(listId);
     },
     shareAgain(listId) {

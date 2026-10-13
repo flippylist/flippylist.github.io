@@ -1,6 +1,7 @@
 const SYNC_STORAGE_KEY = 'liststorage:sync';
-const BACKUP_STORAGE_KEY = 'liststorage:backups';
 const serialize = value => JSON.stringify(value);
+const validSyncToken = value => typeof value === 'string' && /^[1-9][0-9]{0,14}-[a-f0-9]{64}$/.test(value);
+const syncConflict = (revision, message) => Object.assign(new Error(message), { code: 'SYNC_CONFLICT', revision });
 
 // Even a list with no tasks has a title/metadata entry at index zero.
 function isValidList(value) {
@@ -25,6 +26,20 @@ const liststorage = {
   save: lists => localStorage.setItem('liststorage', serialize(lists))
 };
 
+function syncMetadata() {
+  const entries = readStorage(SYNC_STORAGE_KEY);
+  // Store flags and the current sync token only, never past list contents.
+  for (const id of Object.keys(entries)) {
+    const value = entries[id] || {};
+    entries[id] = {
+      revision: validSyncToken(value.revision) ? value.revision : null,
+      pending: !!value.pending, unpublished: value.unpublished,
+      attempted: !!value.attempted, deleted: !!value.deleted, deletePending: !!value.deletePending
+    };
+  }
+  return entries;
+}
+
 function newListId(lists) {
   const used = { ...readStorage(SYNC_STORAGE_KEY), ...liststorage.fetch(), ...lists };
   let id;
@@ -34,7 +49,7 @@ function newListId(lists) {
   return id;
 }
 
-function onlineUrl(id, known = []) {
+function onlineUrl(id, known = null) {
   const configured = (window.FLIPPYLIST_CONFIG && window.FLIPPYLIST_CONFIG.apiBaseUrl || '').trim();
   const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   let base = '';
@@ -50,7 +65,7 @@ function onlineUrl(id, known = []) {
     throw new Error('Online sync is not configured yet. Set apiBaseUrl in config.js to the Vercel API address.');
   }
   return base + '/api/list?id=' + encodeURIComponent(id) +
-    (known.length ? '&known=' + encodeURIComponent(serialize(known)) : '');
+    (known ? '&known=' + encodeURIComponent(known) : '');
 }
 
 async function onlineResponse(response, action, deletion = false) {
@@ -59,21 +74,19 @@ async function onlineResponse(response, action, deletion = false) {
     const error = new Error(data.error || action + ' failed (HTTP ' + response.status + ').');
     error.code = data.code;
     error.revision = data.revision;
-    error.versions = data.versions;
     throw error;
   }
   if (deletion) {
     if (data.deleted !== true) throw new Error('The server did not confirm deletion. Retry delete.');
     return data;
   }
-  if (!isValidList(data.list) || !Array.isArray(data.revision) || data.revision.length !== 1 ||
-      !data.revision.every(value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value))) {
+  if (!isValidList(data.list) || !validSyncToken(data.revision)) {
     throw new Error('The server returned an empty or invalid list.');
   }
   return data;
 }
 
-async function getOnline(id, known = []) {
+async function getOnline(id, known = null) {
   const response = await fetch(onlineUrl(id, known), {
     cache: 'no-store',
     credentials: 'omit'
@@ -101,7 +114,9 @@ class ListSync {
   constructor(app) {
     this.app = app;
     this.previous = JSON.parse(serialize(app.lists));
-    this.metadata = readStorage(SYNC_STORAGE_KEY);
+    localStorage.removeItem('liststorage:backups');
+    this.metadata = syncMetadata();
+    localStorage.setItem(SYNC_STORAGE_KEY, serialize(this.metadata));
     this.states = new Map();
     Object.keys(app.lists).forEach(id => this.state(id));
   }
@@ -110,9 +125,8 @@ class ListSync {
     if (!this.states.has(id)) {
       const saved = this.metadata[id] || {};
       this.states.set(id, {
-        baseline: saved.baseline || serialize(this.app.lists[id]),
         pending: !!saved.pending,
-        revision: Array.isArray(saved.revision) ? saved.revision : [],
+        revision: validSyncToken(saved.revision) ? saved.revision : null,
         unpublished: saved.unpublished === undefined
           ? !(this.app.lists[id] && this.app.lists[id][0].online)
           : saved.unpublished,
@@ -154,9 +168,8 @@ class ListSync {
     this.error(id, error.message + suffix);
     Vue.set(this.app.missingOnline, id, error.code === 'LIST_NOT_FOUND');
     Vue.delete(this.app.syncConflicts, id);
-    if (error.code === 'SYNC_CONFLICT' && Array.isArray(error.revision) &&
-        Array.isArray(error.versions) && error.versions.every(version => isValidList(version.list))) {
-      Vue.set(this.app.syncConflicts, id, { revision: error.revision, versions: error.versions });
+    if (error.code === 'SYNC_CONFLICT' && validSyncToken(error.revision)) {
+      Vue.set(this.app.syncConflicts, id, error.revision);
     }
   }
 
@@ -168,22 +181,11 @@ class ListSync {
 
   remember(id) {
     // Merge individual entries so a different tab's unrelated lists survive.
-    const metadata = readStorage(SYNC_STORAGE_KEY);
+    const metadata = syncMetadata();
     const state = this.state(id);
-    metadata[id] = { baseline: state.baseline, pending: state.pending, unpublished: state.unpublished,
+    metadata[id] = { pending: state.pending, unpublished: state.unpublished,
       revision: state.revision, attempted: state.attempted, deleted: state.deleted, deletePending: state.deletePending };
     localStorage.setItem(SYNC_STORAGE_KEY, serialize(metadata));
-  }
-
-  backup(id, list, reason) {
-    if (!isValidList(list)) return;
-    const backups = readStorage(BACKUP_STORAGE_KEY);
-    const history = backups[id] || [];
-    if (!history.length || serialize(history[history.length - 1].list) !== serialize(list)) {
-      history.push({ savedAt: new Date().toISOString(), reason, list });
-    }
-    backups[id] = history.slice(-10);
-    localStorage.setItem(BACKUP_STORAGE_KEY, serialize(backups));
   }
 
   changed() {
@@ -203,12 +205,10 @@ class ListSync {
         }
         if (serialize(disk[id]) !== previous && serialize(disk[id]) !== current) {
           state.ready = false;
-          this.backup(id, lists[id], 'Edits conflicting with another tab');
-          this.error(id, 'This list changed in another tab. Your edits are in the recovery backup. Reload to use the saved copy.');
+          this.error(id, 'This list changed in another tab. Your edits are still open here; copy them before reloading.');
           continue;
         }
         if (lists[id] === undefined) {
-          this.backup(id, disk[id], 'List removed from this device');
           clearTimeout(state.timer);
           this.states.delete(id);
           delete disk[id];
@@ -254,16 +254,11 @@ class ListSync {
       if (this.app.storageError || serialize(this.previous[id]) !== data) {
         throw new Error('Save on this device must succeed before uploading.');
       }
-      if (!state.unpublished && data === state.baseline) {
-        state.pending = false;
-        this.remember(id);
-        return;
-      }
       if (!state.unpublished) {
         const online = await getOnline(id, state.revision);
         const remote = serialize(online.list);
-        if (remote !== state.baseline && remote !== data) {
-          throw new Error('The online list changed on another device. Load its copy before syncing further edits.');
+        if (online.revision !== state.revision && remote !== data) {
+          throw syncConflict(online.revision, 'The online list changed on another device. Load its copy before syncing further edits.');
         }
         if (this.states.get(id) !== state || state.deletePending || state.deleted || !this.app.lists[id] || !this.app.lists[id][0].online) return;
         this.checkSavedCopy(id);
@@ -271,9 +266,8 @@ class ListSync {
       }
       state.attempted = true;
       this.remember(id);
-      const saved = await saveOnline(id, data, state.unpublished ? [] : state.revision);
+      const saved = await saveOnline(id, data, state.unpublished ? null : state.revision);
       if (this.states.get(id) !== state || state.deletePending || state.deleted) return;
-      state.baseline = serialize(saved.list);
       state.revision = saved.revision;
       state.unpublished = false;
       state.pending = serialize(this.app.lists[id]) !== data;
@@ -303,7 +297,7 @@ class ListSync {
         state.ready = true;
         return;
       }
-      const online = await getOnline(id, state.revision);
+      const online = await getOnline(id, replace ? null : state.revision);
       const data = online.list;
       if (this.states.get(id) !== state || state.deletePending || state.deleted) return;
       this.checkSavedCopy(id);
@@ -313,17 +307,14 @@ class ListSync {
       const current = serialize(local);
       // Never overwrite edits made while a download was in flight, even on an explicit reload.
       if (current !== before || (state.pending && !replace)) {
-        if (remote !== current && remote !== state.baseline) {
-          throw new Error('The online copy differs from your unsent edits. Sync is paused.');
+        if (remote !== current && online.revision !== state.revision && remote !== before) {
+          throw syncConflict(online.revision, 'The online copy differs from your unsent edits. Choose which current copy to use.');
         }
-        state.baseline = remote;
         state.pending = current !== remote;
       } else {
         if (!replace && data.length === 1 && local.length > 1) {
           throw new Error('The online copy has no items. Your local items have been kept.');
         }
-        if (current !== remote) this.backup(id, local, 'Before downloading an online copy');
-        state.baseline = remote;
         state.revision = online.revision;
         state.pending = false;
         state.incoming = remote;
@@ -350,10 +341,9 @@ class ListSync {
     if (Object.prototype.hasOwnProperty.call(this.app.lists, id)) return;
     data[0].online = true;
     const state = this.state(id);
-    state.baseline = serialize(data);
     state.revision = online.revision;
     state.unpublished = false;
-    state.incoming = state.baseline;
+    state.incoming = serialize(data);
     state.ready = true;
     Vue.set(this.app.lists, id, data);
     this.changed();
@@ -363,7 +353,7 @@ class ListSync {
     if (!this.app.missingOnline[id]) return;
     const state = this.state(id);
     if (state.deleted || state.deletePending || state.saving || state.loading) return;
-    state.revision = [];
+    state.revision = null;
     state.unpublished = true;
     state.pending = true;
     state.ready = true;
@@ -371,33 +361,31 @@ class ListSync {
     this.queue(id);
   }
 
-  async resolve(id, version) {
+  async resolve(id) {
     const conflict = this.app.syncConflicts[id];
     const state = this.state(id);
     if (!conflict || state.deleted || state.deletePending || state.saving || state.loading) return;
     this.changed();
     const before = serialize(this.app.lists[id]);
-    const chosen = serialize(version ? version.list : this.app.lists[id]);
+    const chosen = before;
     state.saving = true;
     state.ready = false;
     clearTimeout(state.timer);
     try {
       this.checkSavedCopy(id);
       if (this.app.storageError) throw new Error('Save on this device must succeed before resolving.');
-      this.backup(id, this.app.lists[id], 'Before choosing a saved version');
       state.attempted = true;
       this.remember(id);
-      const saved = await saveOnline(id, chosen, conflict.revision);
+      const saved = await saveOnline(id, chosen, conflict);
       if (this.states.get(id) !== state || state.deletePending || state.deleted) return;
       this.checkSavedCopy(id);
-      state.baseline = serialize(saved.list);
       state.revision = saved.revision;
       state.unpublished = false;
       if (serialize(this.app.lists[id]) === before && this.app.lists[id][0].online) {
-        state.incoming = state.baseline;
+        state.incoming = serialize(saved.list);
         Vue.set(this.app.lists, id, saved.list);
       }
-      state.pending = serialize(this.app.lists[id]) !== state.baseline;
+      state.pending = serialize(this.app.lists[id]) !== serialize(saved.list);
       this.remember(id);
       this.changed();
       this.error(id, '');
@@ -442,14 +430,13 @@ class ListSync {
     try {
       this.checkSavedCopy(id);
       if (this.app.storageError) throw new Error('Save on this device must succeed before deleting.');
-      this.backup(id, this.app.lists[id], 'Before deleting this list');
       if (remote) {
         state.deletePending = true;
         this.remember(id);
         state.deleting = true;
         Vue.set(this.app.deletePending, id, true);
         Vue.set(this.app.deletingLists, id, true);
-        this.error(id, 'Deleting the online list and its history…');
+        this.error(id, 'Deleting the online list…');
         await deleteOnline(id);
         state.deletePending = false;
         Vue.delete(this.app.deletePending, id);
@@ -507,8 +494,7 @@ class ListSync {
     if (state.deleted) return this.app.shareAgain(id);
     Vue.set(list[0], 'online', !list[0].online);
     // New local lists can be published; existing online lists are checked before reconnecting.
-    const baseline = state.baseline && JSON.parse(state.baseline);
-    if (list[0].online && (!baseline || !baseline[0].online)) state.ready = true;
+    if (list[0].online) state.ready = state.unpublished;
     this.changed();
     if (list[0].online && !state.ready) this.load(id);
   }

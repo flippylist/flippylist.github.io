@@ -67,15 +67,7 @@
       <button @click="retrySync(listId)">Retry sync</button>
       <button @click="loadOnlineCopy(listId)">Load online copy</button>
       <button v-if="missingOnline[listId]" @click="publishList(listId)">Publish this copy</button>
-      <div v-if="syncConflicts[listId]" class="sync-versions">
-        <p>Compare the saved versions, then choose which one to use.</p>
-        <details v-for="version in syncConflicts[listId].versions" :key="version.revision">
-          <summary>{{version.list[0].title}} · {{version.list.length - 1}} items · {{version.savedAt}}</summary>
-          <p v-for="(item, i) in version.list" v-if="i > 0">{{item.done ? '✓' : '○'}} {{item.title}}</p>
-          <button @click="resolveList(listId, version)">Use this saved version</button>
-        </details>
-        <button @click="resolveList(listId, null)">Use this device’s copy</button>
-      </div>
+      <button v-if="syncConflicts[listId]" @click="resolveList(listId)">Use this device’s copy</button>
     </div>
   </div>
 
@@ -84,8 +76,8 @@
   <button class="add-list" v-on:click="addList()">+</button>
 
 </div>
-<script src="config.js?v=20261013-delete"></script>
-<script src="sync.js?v=20261013-delete"></script>
-<script src="script.js?v=20261013-delete"></script>
+<script src="config.js?v=20261013-current"></script>
+<script src="sync.js?v=20261013-current"></script>
+<script src="script.js?v=20261013-current"></script>
 </body>
 </html>

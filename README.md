@@ -14,18 +14,22 @@ Google Cloud backend, open the device with the desired list contents and click
 devices can then open that list's ID. The app never replaces local contents
 with an empty or invalid response.
 
-Sync errors appear below the list. Conflicting saves pause syncing and offer
-the saved versions to choose from. Local recovery copies are retained in
-`liststorage:backups`, and the backend retains earlier revisions.
+Sync errors appear below the list. Detected conflicting saves pause syncing. Choose
+**Load online copy** or **Use this device’s copy** to keep one current copy.
+The database stores one current record per live list; there is no list history or
+local recovery storage. Existing recovery copies are removed when the app reloads.
+A small current sync token detects stale saves. Simultaneous writes across separate
+server instances can still overwrite each other because SpreadDB has no atomic
+conditional replacement.
 
 Use **+** and leave the prompt blank to create a list, or paste an existing
 list ID to open it. New list IDs have six lowercase letters/digits; existing
-longer IDs still work. Database revision IDs are separate from these sharing IDs.
+longer IDs still work. Database object IDs are separate from these sharing IDs.
 The link icon enables online sharing. Anyone with the list
 ID can read, edit and delete it, so share IDs only with intended collaborators.
 
-The X button deletes the list from this device and removes its online contents
-and entire history. Other devices keep their local copies and stop syncing when
+The X button deletes the list from this device and removes its online contents.
+Other devices keep their local copies and stop syncing when
 they next connect. Only a small permanent deletion marker remains in the database.
 **Share as new list** gives a surviving copy a fresh six-character ID. Switching
 off the link icon only pauses sync; it does not delete the server copy.
