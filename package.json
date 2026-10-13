@@ -1,11 +1,36 @@
 {
-  "name": "flippylist",
+  "name": "flippylist-frontend",
   "version": "1.0.0",
-  "description": "A Pen created on CodePen.",
-  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "description": "Flippylist's GitHub Pages frontend",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && npm test && npm run build"
   },
-  "author": "",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "dependencies": {
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vitejs/plugin-vue": "6.0.10",
+    "@vue/test-utils": "2.5.1",
+    "eslint": "10.12.0",
+    "eslint-plugin-vue": "10.11.1",
+    "globals": "17.13.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.10",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  },
   "license": "ISC"
 }

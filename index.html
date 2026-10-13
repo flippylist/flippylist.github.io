@@ -1,83 +1,19 @@
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Flippylist</title>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.3/vue.min.js"></script>
-  <script src="objectid.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css?v=20261013-typography">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
-  <link rel="icon" type="image/x-icon" href="logo.png">
-
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-</head>
-<body>
-
-<div id='app'>
-  <p class="storage-error" v-if="storageError" role="alert">{{storageError}}</p>
-
-  <div v-for="(list, listId) in lists" :key="listId" class="list-wrapper" v-bind:style="'background:'+(list[0] || {}).bg">
-
-  <ul class="todo-list" >
-    
-    <li class="todo-item" style="border:none !important;padding-top:10px" v-if="list.length>0">
-      
-      <!--i class="fa fa-bars"></i-->
-
-        <span class="input-wrap" v-on:dblclick="pickColor(listId)"><span class="width-machine" aria-hidden="true">{{list[0].title}}</span><input class="input" v-model=" list[0].title" type="text"></span>
-
-        <span class="listId-decent">
-          <button class="delete-list" :disabled="deletingLists[listId]" v-on:click="removeList(listId)">X</button>
-          
-          <input type="color" v-bind:id="'colorPicker'+listId" style="display:none" name="colorPicker" v-model="(list[0] || {}).bg" value="#e66465" />
-
-          <i class="fa fa-link" style="font-size: 12px;cursor:pointer" aria-hidden="true" v-if="list[0].online" v-on:click="toggleOnline(listId)"></i>
-          <i class="fa fa-link-slash" style="font-size: 12px;color:#CCCCCC;cursor:pointer" aria-hidden="true" v-if="!list[0].online" v-on:click="toggleOnline(listId)"></i>
-          <span v-if="list[0].online">{{listId}}</span>
-        </span>
-    </li>
-
-    <li class="todo-item" v-for="(item, i) in list" v-if="i>0" :key="i" draggable="true" @dragstart="dragStart(i, $event, listId)" @dragover.prevent @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" @drop="dragFinish(i, $event, listId)" v-bind:class="{checked:item.done}">
-      
-      <input type="checkbox" v-model="item.done" v-if="i>0" />
-      <i class="fa fa-bars" v-else></i>
-      
-
-        <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{item.title}}</span><input class="input" v-model=" item.title" type="text"></span>
-
-      <span class="remove-item" @click="removeItem(item, listId)" v-if="i>0">&times;</span>
-    </li>
-
- 
-    <li class="todo-item">
-      <input type="checkbox" disabled />
-
-      <span class="input-wrap"><span class="width-machine" aria-hidden="true">{{newItemMap[listId]}}</span><input placeholder="..." class="input" v-model="newItemMap[listId]" @keyup.enter="addItem(listId)" type="text"></span> <span v-if="newItemMap[listId]">&crarr;</span>
-    </li>
-
-  </ul>
-  <div class="sync-error" v-if="syncErrors[listId]" role="alert">
-    {{syncErrors[listId]}}
-    <button v-if="deletePending[listId]" :disabled="deletingLists[listId]" @click="removeList(listId)">Retry delete</button>
-    <button v-if="deletedOnline[listId] && !deletePending[listId]" @click="shareAgain(listId)">Share as new list</button>
-    <div v-if="(list[0] || {}).online && !deletedOnline[listId] && !deletePending[listId]">
-      <button @click="retrySync(listId)">Retry sync</button>
-      <button @click="loadOnlineCopy(listId)">Load online copy</button>
-      <button v-if="missingOnline[listId]" @click="publishList(listId)">Publish this copy</button>
-      <button v-if="syncConflicts[listId]" @click="resolveList(listId)">Use this device’s copy</button>
-    </div>
-  </div>
-
-</div>
-
-  <button class="add-list" v-on:click="addList()">+</button>
-
-</div>
-<script src="config.js?v=20261013-current"></script>
-<script src="sync.js?v=20261013-current"></script>
-<script src="script.js?v=20261013-current"></script>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Flippylist</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

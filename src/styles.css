@@ -1,0 +1,162 @@
+:root {
+  --accent: #f692a3;
+  --muted: #aaaaaa;
+  --error: #9b2525;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    'Avenir Next',
+    Avenir,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+input,
+button {
+  font-family: inherit;
+}
+input {
+  color: #333333;
+}
+input:focus {
+  outline: none;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#app {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.list-wrapper {
+  margin: 5px;
+  border-radius: 10px;
+}
+.todo-list {
+  list-style-type: none;
+  padding: 10px;
+  width: auto;
+  margin: 5px;
+}
+.todo-item {
+  width: max-content;
+  margin: 5px;
+  padding: 14px 8px;
+  border: 1px solid #cccccc;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+.list-heading {
+  border: none;
+  padding-top: 10px;
+}
+.list-heading .input-wrap {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.todo-item input {
+  border: none;
+  font: inherit;
+  letter-spacing: inherit;
+}
+.checked input {
+  color: var(--muted);
+}
+
+.list-id {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+.color-picker {
+  display: none;
+}
+.delete-list {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  margin: 2px;
+  font-size: 10px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+.sync-toggle {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.sync-toggle.is-offline {
+  color: #cccccc;
+}
+.remove-item {
+  float: right;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.todo-item:hover .remove-item {
+  opacity: 1;
+}
+
+/* The invisible text sizes the editable field to its contents. */
+.input-wrap {
+  position: relative;
+  display: inline-block;
+}
+.input-wrap .input {
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+.width-machine {
+  padding: 0 1rem;
+}
+
+.add-list {
+  margin: 30px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 100px;
+  background-color: var(--accent);
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+.sync-error,
+.storage-error {
+  max-width: 320px;
+  margin: 12px;
+  color: var(--error);
+  line-height: 1.5;
+}
+.sync-error button {
+  margin: 8px 4px 0 0;
+}
+.storage-error {
+  flex-basis: 100%;
+  max-width: 100%;
+}
