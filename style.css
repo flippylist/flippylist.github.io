@@ -1,5 +1,11 @@
 body {
-  font-family: monospace;
+  font-family: "Avenir Next", Avenir, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+input, button {
+  font-family: inherit;
 }
 
 input:focus {
@@ -133,6 +139,8 @@ input[type="color" i]::-moz-color-swatch {
 
 .listId-decent {
   color: #AAAAAA;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
 }
 
 .checked input {
@@ -141,11 +149,14 @@ input[type="color" i]::-moz-color-swatch {
 
 .todo-item input {
   border:none;
-  font-size:16px;
+  font: inherit;
+  letter-spacing: inherit;
 }
 
-.todo-item:nth-child(1) input {
-  font-weight: bold !important;
+.todo-item:nth-child(1) .input-wrap {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .remove-item {
