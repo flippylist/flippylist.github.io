@@ -269,17 +269,85 @@ test('invalid indices cannot remove or corrupt tasks', async () => {
   assert.deepEqual(copy(b.workspace.lists), { a: list('Milk'), b: list('Bread') });
 });
 
-test('a stale device detects newer server data before uploading its whole list', async () => {
+test('an edit uses one save request with the last acknowledged revision', async () => {
+  const b = browser();
+  b.requests[0].reply(list('Milk'));
+  await b.tick();
+  const before = b.requests.length;
+  b.workspace.actions.editItem('shared', 1, 'Bread');
+  await b.tick();
+  assert.equal(b.requests.length, before + 1);
+  const request = b.requests.at(-1);
+  assert.equal(request.method, 'POST');
+  assert.deepEqual(JSON.parse(request.body), {
+    list: list('Bread'),
+    revision: token(list('Milk')),
+  });
+  request.reply({});
+  await b.tick();
+  assert.equal(b.requests.length, before + 1, 'save confirmation requires no extra read');
+  assert.equal(b.workspace.statuses.shared.pending, false);
+});
+
+test('last-save-wins sends an edit directly even when another device has changed the list', async () => {
   const b = browser();
   b.requests[0].reply(list('Milk'));
   await b.tick();
   b.serverData.set('shared', list('Milk', 'Eggs'));
   b.workspace.lists.shared.push({ title: 'Bread', done: false });
   await b.tick();
-  assert.equal(b.posts().length, 0);
+  assert.equal(b.posts().length, 1);
+  assert.equal(b.requests.length, 2, 'startup download and one save');
+  assert.equal(JSON.parse(b.posts()[0].body).revision, token(list('Milk')));
+  b.posts()[0].reply({});
+  await b.tick();
   assert.deepEqual(b.saved().shared, list('Milk', 'Bread'));
-  assert.deepEqual(b.serverData.get('shared'), list('Milk', 'Eggs'));
-  assert.match(b.workspace.statuses.shared.error, /another device/);
+  assert.deepEqual(b.serverData.get('shared'), list('Milk', 'Bread'));
+  assert.equal(b.workspace.statuses.shared.error, '');
+  assert.equal(b.workspace.statuses.shared.pending, false);
+  assert.equal(b.requests.length, 2);
+});
+
+test('an uncertain creation can be recovered with one explicit read after an ID-exists response', async () => {
+  const b = browser(
+    { local: list('Milk') },
+    {
+      'liststorage:sync': JSON.stringify({
+        local: { unpublished: true, attempted: true, pending: true },
+      }),
+    },
+  );
+  await b.tick();
+  assert.equal(b.requests.length, 1);
+  b.posts()[0].reply({ code: 'LIST_EXISTS', error: 'This ID already exists. Retry sync.' }, 409);
+  await b.tick();
+  assert.equal(b.requests.length, 1, 'an ambiguous create does not trigger more calls');
+  assert.equal(b.workspace.statuses.local.publication, 'published');
+  const retry = b.workspace.actions.retrySync('local');
+  b.requests[1].reply(list('Milk'));
+  await retry;
+  await b.tick();
+  assert.equal(b.requests.length, 2);
+  assert.equal(b.workspace.statuses.local.pending, false);
+  assert.equal(b.workspace.statuses.local.error, '');
+});
+
+test('delete waits for an in-flight creation and then sends exactly one delete', async () => {
+  const b = browser({ local: [{ title: 'Local', online: false }] });
+  b.workspace.actions.toggleOnline('local');
+  await b.tick();
+  const removed = b.workspace.actions.removeList('local');
+  await b.flush();
+  assert.equal(b.requests.length, 1, 'wait for the insert to finish');
+  b.posts()[0].reply({});
+  await b.flush();
+  assert.equal(b.requests.length, 2);
+  assert.equal(b.requests[1].method, 'DELETE');
+  b.requests[1].reply({ deleted: true });
+  await removed;
+  await b.tick();
+  assert.deepEqual(b.saved(), {});
+  assert.equal(b.requests.length, 2);
 });
 
 test('a newly published list survives a refresh before its first upload', async () => {
@@ -328,16 +396,20 @@ test('a rejected upload offers the two current copies without historical version
   assert.equal(b.workspace.statuses.shared.conflictRevision, null);
 });
 
-test('downloads include the last acknowledged revision to guard against replica lag', async () => {
+test('even explicit downloads identify previously shared lists so deletion stops sync', async () => {
   const b = browser();
   b.requests[0].reply(list('Milk'));
   await b.tick();
-  b.workspace.actions.retrySync('shared');
+  const loaded = b.workspace.actions.loadOnlineCopy('shared');
   const url = new URL(b.requests[1].url, 'http://flippy.test');
   assert.equal(url.searchParams.get('known'), token(list('Milk')));
-  b.requests[1].reply({ error: 'Not caught up', code: 'REPLICA_BEHIND' }, 503);
+  b.requests[1].reply({ error: 'Deleted', code: 'LIST_DELETED' }, 410);
+  await loaded;
   await b.tick();
-  assert.deepEqual(b.saved().shared, list('Milk'));
+  const kept = list('Milk');
+  kept[0].online = false;
+  assert.deepEqual(b.saved().shared, kept);
+  assert.equal(b.workspace.statuses.shared.deletion, 'deleted');
   assert.equal(b.workspace.statuses.shared.missing, false);
 });
 

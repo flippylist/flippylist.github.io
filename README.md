@@ -45,6 +45,11 @@ reactive sync status: publication (`local`, `attempted`, `published`), deletion
 Current request identities ensure late responses cannot revive a deleted list.
 UI error messages and request activity are not persisted.
 
+Each read, create, edit, or delete sends one API request. An edit directly sends
+its saved content token and uses the response as confirmation; there is no extra
+download before or after it. The backend uses one SpreadDB data request per
+operation. Initial authentication and expired-token renewal are separate.
+
 Lists use the existing storage/API format: an array with title/background/online
 metadata at index zero, followed by `{title, done}` tasks. That boundary remains
 unchanged so current lists survive the cleanup. Storage contains current copies
@@ -78,12 +83,11 @@ used for the two existing sync icons. jQuery and ObjectId are no longer loaded.
 - List items keep their content width; double-clicking a list title opens its color picker.
 - Edits save locally before the upload debounce. Invalid/empty responses and delayed
   downloads cannot discard local edits.
-- Detected conflicts offer the current online copy or this device's current copy.
-  SpreadDB has no atomic conditional replacement across server instances, so truly
-  simultaneous writes can still overwrite each other.
+- Saves use last-save-wins: an older device can overwrite newer online changes.
+  Downloads still preserve unsent edits and offer a choice if the copies differ.
 - Deleting a shared list removes its database contents. Other devices retain their
-  local copies and stop syncing that ID. A tiny content-free deletion marker prevents
-  recreation. Sharing a surviving copy creates a fresh six-character ID.
+  local copies and stop syncing that ID. Updates cannot create missing records.
+  Sharing a surviving copy creates a fresh six-character ID.
 - Anyone with a sharing ID can read, edit and delete that list.
 
 Based on the original [Flippylist CodePen](https://codepen.io/Marco-Boelling/pen/dPGrqaz).

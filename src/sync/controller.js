@@ -50,6 +50,10 @@ export class ListSync {
     if (error.code === 'LIST_DELETED') return this.markDeleted(id);
     this.error(id, error.message + suffix);
     const state = this.state(id);
+    if (error.code === 'LIST_EXISTS') {
+      state.publication = 'published';
+      this.remember(id);
+    }
     state.missing = error.code === 'LIST_NOT_FOUND';
     if (error.code === 'SYNC_CONFLICT' && isValidSyncToken(error.revision)) {
       state.conflictRevision = error.revision;
@@ -149,6 +153,9 @@ export class ListSync {
   begin(id, activity) {
     this.cancelTimer(id);
     const request = {};
+    request.done = new Promise((resolve) => {
+      request.complete = resolve;
+    });
     this.requests.set(id, request);
     this.state(id).activity = activity;
     return request;
@@ -159,6 +166,7 @@ export class ListSync {
   }
 
   finish(id, request) {
+    request.complete();
     if (!this.isCurrent(id, request)) return;
     this.requests.delete(id);
     this.state(id).activity = 'idle';
@@ -180,18 +188,7 @@ export class ListSync {
     const request = this.begin(id, 'upload');
     try {
       this.requireSaved(id);
-      if (state.publication === 'published') {
-        const online = await this.api.read(id, state.revision);
-        if (!this.isCurrent(id, request) || !this.lists[id][0].online) return;
-        if (online.revision !== state.revision && serialize(online.list) !== data) {
-          throw conflict(
-            online.revision,
-            'The online list changed on another device. Choose which current copy to use.',
-          );
-        }
-        this.checkSavedCopy(id);
-        state.revision = online.revision;
-      }
+      // Save once and use the returned token; no preliminary or confirmation download.
       if (state.publication === 'local') state.publication = 'attempted';
       this.remember(id);
       const saved = await this.api.save(
@@ -227,7 +224,7 @@ export class ListSync {
         state.ready = true;
         return;
       }
-      const online = await this.api.read(id, replace ? null : state.revision);
+      const online = await this.api.read(id, state.revision);
       if (!this.isCurrent(id, request)) return;
       this.checkSavedCopy(id);
       const local = this.lists[id];
@@ -341,6 +338,10 @@ export class ListSync {
     this.flush();
     const before = serialize(this.lists[id]);
     const remote = hasRemoteCopy(state, this.lists[id]);
+    const creation =
+      state.publication === 'attempted' && state.activity === 'upload'
+        ? this.requests.get(id)
+        : null;
     // A delete supersedes any outstanding read/upload; its late result is ignored.
     const request = this.begin(id, 'delete');
     state.ready = false;
@@ -350,6 +351,9 @@ export class ListSync {
         state.deletion = 'pending';
         this.remember(id);
         this.error(id, 'Deleting the online list…');
+        // Let the first insert finish before deleting its record.
+        if (creation) await creation.done;
+        if (!this.isCurrent(id, request)) return;
         await this.api.remove(id);
         if (!this.isCurrent(id, request)) return;
         state.deletion = 'deleted';
