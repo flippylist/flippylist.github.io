@@ -20,7 +20,16 @@ const app = new Vue({
     async addList() {
       const answer = prompt('Enter id or leave blank for new list');
       if (answer === null) return;
-      const listId = answer.trim() || crypto.randomUUID();
+      let listId = answer.trim();
+      if (!listId) {
+        const savedLists = liststorage.fetch();
+        do {
+          // Six lowercase letters/digits; database revision IDs stay separate.
+          listId = Array.from(crypto.getRandomValues(new Uint8Array(6)),
+            value => (value & 31).toString(32)).join('');
+        } while (Object.prototype.hasOwnProperty.call(this.lists, listId) ||
+                 Object.prototype.hasOwnProperty.call(savedLists, listId));
+      }
       if (['__proto__', 'constructor', 'prototype'].includes(listId) ||
           Object.prototype.hasOwnProperty.call(this.lists, listId)) {
         alert('That list id is already in use or is invalid.');

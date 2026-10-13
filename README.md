@@ -19,5 +19,7 @@ the saved versions to choose from. Local recovery copies are retained in
 `liststorage:backups`, and the backend retains earlier revisions.
 
 Use **+** and leave the prompt blank to create a list, or paste an existing
-list ID to open it. The link icon enables online sharing. Anyone with the list
+list ID to open it. New list IDs have six lowercase letters/digits; existing
+longer IDs still work. Database revision IDs are separate from these sharing IDs.
+The link icon enables online sharing. Anyone with the list
 ID can read and edit it, so share IDs only with intended collaborators.
