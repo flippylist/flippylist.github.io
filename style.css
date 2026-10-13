@@ -175,3 +175,12 @@ input[type="color" i]::-moz-color-swatch {
   /*   Sort of a magic number to add extra space for number spinner */
   padding: 0 1rem;
 }
+
+.sync-error, .storage-error {
+  max-width: 320px;
+  margin: 12px;
+  color: #9b2525;
+  line-height: 1.5;
+}
+.sync-error button { margin: 8px 4px 0 0; }
+.storage-error { flex-basis: 100%; max-width: 100%; }

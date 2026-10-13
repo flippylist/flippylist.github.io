@@ -1,91 +1,61 @@
-const TODO_STORAGE_KEY = "liststorage";
-
-let liststorage = {
-  fetch: () => JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || "{}"),
-  save: lists => localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(lists))
-};
-
-var saveTimeoutObject;
-
-const randomId = function(length = 6) {
-  return Math.random().toString(36).substring(2, length+2);
-};
-
-function saveOnline(id, data){
-      
-        fetch("https://post-274723231011.europe-west1.run.app?id="+id, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)})
-        .then(function(res){ return res.json(); })
-        .catch(e => {
-          console.log(e)
-        })
-    };
-
-function getOnline(id, callback){
-      fetch("https://get-274723231011.europe-west1.run.app?id="+id, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }})
-        .then(function(res){ 
-          return res.json()
-           })
-        .then(function(json) {
-          callback(json)
-        })
-        .catch(e => {
-          console.log(e)
-        })
-    }
-
-
 const app = new Vue({
   el: "#app",
   data: () => {
     return {
       lists: liststorage.fetch(),
       newItemMap: {},
-      dragging: -1
+      dragging: -1,
+      draggingListId: null,
+      syncErrors: {},
+      syncConflicts: {},
+      missingOnline: {},
+      storageError: ''
     };
   },
   methods: {
-    addList() {
-
-      var self  =this;
-      //var listName = prompt('List name')
-
-      var promptData = prompt('Enter name for new list or id to add shared list');
-
-      var listId = randomId();
-
-      if(promptData.length == 6) listId = promptData;
-
-      if(!this.lists[listId]) {
-        if(promptData.length == 6)  // taken from online
-        {
-          getOnline(listId, data => {
-            try {
-                    if(data.error) return Vue.set(self.lists, listId, [{title:listId, bg:""}])
-
-                    Vue.set(self.lists, listId, data)
-                  } catch(e) {
-                    console.log(e)
-                    Vue.set(self.lists, listId, [{title:listId, bg:""}])
-                  }
-          })
-        } else Vue.set(this.lists, listId, [{title:promptData, bg:""}])//[{title:"sf", done:false}]
-      } 
-      else alert('name already exists')
-
+    pickColor(listId) {
+      const picker = document.getElementById('colorPicker' + listId);
+      if (picker) picker.click();
     },
-    toggleOnline(list, value){
-      Vue.set(list[0], 'online',  value);
+    async addList() {
+      const answer = prompt('Enter id or leave blank for new list');
+      if (answer === null) return;
+      const listId = answer.trim() || crypto.randomUUID();
+      if (['__proto__', 'constructor', 'prototype'].includes(listId) ||
+          Object.prototype.hasOwnProperty.call(this.lists, listId)) {
+        alert('That list id is already in use or is invalid.');
+        return;
+      }
+      if (answer.trim()) {
+        try {
+          await this.$listSync.import(listId);
+        } catch (error) {
+          alert('Could not open the list: ' + error.message);
+        }
+      } else {
+        Vue.set(this.lists, listId, [{ title: '...', bg: '', online: false }]);
+      }
+    },
+    toggleOnline(listId) {
+      this.$listSync.toggle(listId);
+    },
+    retrySync(listId) {
+      this.$listSync.load(listId);
+    },
+    publishList(listId) {
+      if (confirm('Publish this device’s copy to the new server? Check that it contains the items you want to keep.')) {
+        this.$listSync.publish(listId);
+      }
+    },
+    resolveList(listId, version) {
+      if (confirm('Use this version for everyone? The other saved versions will remain in the history.')) {
+        this.$listSync.resolve(listId, version);
+      }
+    },
+    loadOnlineCopy(listId) {
+      if (confirm('Replace this device’s list with the online copy? Your current copy will be kept in the recovery backup.')) {
+        this.$listSync.load(listId, true);
+      }
     },
     removeList(listId){
       if(confirm('Delete list?'))
@@ -95,7 +65,7 @@ const app = new Vue({
       if (!this.newItemMap[listId]) {
         return;
       }
-      if(!this.lists[listId]) this.lists[listId] = []
+      if (!isValidList(this.lists[listId])) return;
       this.lists[listId].push({
         title: this.newItemMap[listId],
         done: false
@@ -103,13 +73,17 @@ const app = new Vue({
       this.newItemMap[listId] = "";
     },
     removeItem(item, listId) {
-      this.lists[listId].splice(this.lists[listId].indexOf(item), 1);
+      this.removeItemAt(this.lists[listId].indexOf(item), listId);
     },
     removeItemAt(index, listId) {
-      this.lists[listId].splice(index, 1);
+      const list = this.lists[listId];
+      if (list && Number.isInteger(index) && index > 0 && index < list.length) {
+        list.splice(index, 1);
+      }
     },
     dragStart(which, ev, listId) {
-      ev.dataTransfer.setData('Text', this.id);
+      ev.dataTransfer.setData('Text', listId);
+      this.draggingListId = listId;
       ev.dataTransfer.dropEffect = 'move'
       this.dragging = which;
     },
@@ -129,47 +103,30 @@ const app = new Vue({
       */
     },
     dragEnd(ev) {
-      this.dragging = -1
+      this.dragging = -1;
+      this.draggingListId = null;
     },
     dragFinish(to, ev, listId) {
-      this.moveItem(this.dragging, to, listId);
+      if (this.draggingListId === listId) this.moveItem(this.dragging, to, listId);
+      this.dragEnd();
       ev.target.style.marginTop = '2px'
       ev.target.style.marginBottom = '2px'
     },
     moveItem(from, to, listId) {
+      const list = this.lists[listId];
+      if (!list || !Number.isInteger(from) || from <= 0 || from >= list.length ||
+          !Number.isInteger(to) || (to !== -1 && (to <= 0 || to >= list.length))) return;
       if (to === -1) {
         this.removeItemAt(from, listId);
       } else {
         this.lists[listId].splice(to, 0, this.lists[listId].splice(from, 1)[0]);
       }
     },
-    fetchOnlineLists(){
-
-    var self = this;
-
-
-     //Vue.nextTick(function () {
-          var lists = liststorage.fetch();
-          Object.keys(lists).forEach(listId => {
-            if(lists[listId][0]){
-              if(lists[listId][0].online){
-
-                getOnline(listId, data => {
-                  console.log('listdataonline', data, listId, self.$data)
-                  try {
-                    if (!data.hasOwnProperty('error'))
-                      self.lists[listId] = data
-                  } catch(e) {
-                    console.log(e)
-                  }
-                  
-                })
-
-              }
-            }
-
-          })
-        //})
+    fetchOnlineLists() {
+      Object.keys(this.lists).forEach(listId => {
+        const list = this.lists[listId];
+        if (isValidList(list) && list[0].online) this.$listSync.load(listId);
+      });
     }
   },
   computed: {
@@ -177,42 +134,22 @@ const app = new Vue({
       return this.dragging > -1
     }
   },
-  // watch lists change for localStorage persistence
+  created() {
+    this.$listSync = new ListSync(this);
+  },
   watch: {
     lists: {
-      handler: function(lists) {
-        clearTimeout(saveTimeoutObject);
-        saveTimeoutObject = setTimeout(() => {
-          var tmpLists = liststorage.fetch();
-
-          liststorage.save(lists);
-
-          Object.keys(lists).forEach(listKey => {
-            if(tmpLists[listKey]){
-              if(JSON.stringify(lists[listKey]) != JSON.stringify(tmpLists[listKey]))
-              {
-                console.log(lists[listKey])
-                if((lists[listKey][0] || {}).online)
-                  saveOnline(listKey, lists[listKey])
-              }
-            }
-          })
-
-        },500)
-        
+      handler() {
+        this.$listSync.changed();
       },
       deep: true
     }
-  }, 
-  mounted(){
-    try {
-      let el = document.querySelector(".input-wrap .input");
-      let widthMachine = document.querySelector(".input-wrap .width-machine");
-      el.addEventListener("keyup", () => {
-        widthMachine.innerHTML = el.value;
-      });
-    } catch(e){}
-
+  },
+  mounted() {
     this.fetchOnlineLists();
+    // Local persistence is immediate; only uploads are debounced.
+    window.addEventListener('pagehide', () => this.$listSync.changed());
+    window.addEventListener('focus', () => this.fetchOnlineLists());
+    window.addEventListener('online', () => this.fetchOnlineLists());
   }
 });
