@@ -30,7 +30,7 @@
         <span class="input-wrap" v-on:dblclick="pickColor(listId)"><span class="width-machine" aria-hidden="true">{{list[0].title}}</span><input class="input" v-model=" list[0].title" type="text"></span>
 
         <span class="listId-decent">
-          <button class="delete-list" v-on:click="removeList(listId)">X</button>
+          <button class="delete-list" :disabled="deletingLists[listId]" v-on:click="removeList(listId)">X</button>
           
           <input type="color" v-bind:id="'colorPicker'+listId" style="display:none" name="colorPicker" v-model="(list[0] || {}).bg" value="#e66465" />
 
@@ -61,7 +61,9 @@
   </ul>
   <div class="sync-error" v-if="syncErrors[listId]" role="alert">
     {{syncErrors[listId]}}
-    <div v-if="(list[0] || {}).online">
+    <button v-if="deletePending[listId]" :disabled="deletingLists[listId]" @click="removeList(listId)">Retry delete</button>
+    <button v-if="deletedOnline[listId] && !deletePending[listId]" @click="shareAgain(listId)">Share as new list</button>
+    <div v-if="(list[0] || {}).online && !deletedOnline[listId] && !deletePending[listId]">
       <button @click="retrySync(listId)">Retry sync</button>
       <button @click="loadOnlineCopy(listId)">Load online copy</button>
       <button v-if="missingOnline[listId]" @click="publishList(listId)">Publish this copy</button>
@@ -82,8 +84,8 @@
   <button class="add-list" v-on:click="addList()">+</button>
 
 </div>
-<script src="config.js?v=20261013-shortids"></script>
-<script src="sync.js?v=20261013-shortids"></script>
-<script src="script.js?v=20261013-shortids"></script>
+<script src="config.js?v=20261013-delete"></script>
+<script src="sync.js?v=20261013-delete"></script>
+<script src="script.js?v=20261013-delete"></script>
 </body>
 </html>

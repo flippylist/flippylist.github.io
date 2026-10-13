@@ -22,4 +22,14 @@ Use **+** and leave the prompt blank to create a list, or paste an existing
 list ID to open it. New list IDs have six lowercase letters/digits; existing
 longer IDs still work. Database revision IDs are separate from these sharing IDs.
 The link icon enables online sharing. Anyone with the list
-ID can read and edit it, so share IDs only with intended collaborators.
+ID can read, edit and delete it, so share IDs only with intended collaborators.
+
+The X button deletes the list from this device and removes its online contents
+and entire history. Other devices keep their local copies and stop syncing when
+they next connect. Only a small permanent deletion marker remains in the database.
+**Share as new list** gives a surviving copy a fresh six-character ID. Switching
+off the link icon only pauses sync; it does not delete the server copy.
+
+If deletion fails, the local list stays available with **Retry delete**. Edits
+made during deletion are also kept locally. Local-only lists that have never been
+shared can be deleted without a connection.

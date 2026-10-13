@@ -9,6 +9,9 @@ const app = new Vue({
       syncErrors: {},
       syncConflicts: {},
       missingOnline: {},
+      deletedOnline: {},
+      deletePending: {},
+      deletingLists: {},
       storageError: ''
     };
   },
@@ -22,13 +25,7 @@ const app = new Vue({
       if (answer === null) return;
       let listId = answer.trim();
       if (!listId) {
-        const savedLists = liststorage.fetch();
-        do {
-          // Six lowercase letters/digits; database revision IDs stay separate.
-          listId = Array.from(crypto.getRandomValues(new Uint8Array(6)),
-            value => (value & 31).toString(32)).join('');
-        } while (Object.prototype.hasOwnProperty.call(this.lists, listId) ||
-                 Object.prototype.hasOwnProperty.call(savedLists, listId));
+        listId = newListId(this.lists);
       }
       if (['__proto__', 'constructor', 'prototype'].includes(listId) ||
           Object.prototype.hasOwnProperty.call(this.lists, listId)) {
@@ -66,9 +63,19 @@ const app = new Vue({
         this.$listSync.load(listId, true);
       }
     },
-    removeList(listId){
-      if(confirm('Delete list?'))
-        Vue.delete(this.lists, listId);
+    removeList(listId) {
+      if (!this.lists[listId]) return;
+      const state = this.$listSync.state(listId);
+      if (state.deleting) return;
+      const remote = state.deletePending || !state.unpublished || state.attempted || this.lists[listId][0].online;
+      if (confirm(remote
+        ? 'Delete this list from this device and delete all its online contents and history? Other devices keep their own copies but can no longer sync this ID.'
+        : 'Delete this local list?')) return this.$listSync.remove(listId);
+    },
+    shareAgain(listId) {
+      if (confirm('Share this copy with a new six-character ID? Other devices will need the new ID to sync with it.')) {
+        return this.$listSync.shareAgain(listId);
+      }
     },
     addItem(listId) {
       if (!this.newItemMap[listId]) {
