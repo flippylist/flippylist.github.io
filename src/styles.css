@@ -131,6 +131,14 @@ input:focus-visible {
 .todo-item:hover .remove-item {
   opacity: 1;
 }
+.add-item {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
 
 /* The invisible text sizes the editable field to its contents. */
 .input-wrap {

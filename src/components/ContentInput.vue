@@ -3,8 +3,9 @@ defineProps({
   modelValue: { type: String, default: '' },
   label: { type: String, required: true },
   placeholder: { type: String, default: '' },
+  enterkeyhint: { type: String, default: undefined },
 });
-defineEmits(['update:modelValue', 'submit']);
+defineEmits(['update:modelValue']);
 </script>
 
 <template>
@@ -16,8 +17,8 @@ defineEmits(['update:modelValue', 'submit']);
       :aria-label="label"
       :value="modelValue"
       :placeholder="placeholder"
+      :enterkeyhint="enterkeyhint"
       @input="$emit('update:modelValue', $event.target.value)"
-      @keyup.enter="$emit('submit')"
     />
   </span>
 </template>

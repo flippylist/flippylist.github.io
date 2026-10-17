@@ -88,6 +88,8 @@ used for the two existing sync icons. jQuery and ObjectId are no longer loaded.
 ## Behavior to preserve
 
 - List items keep their content width; double-clicking a list title opens its color picker.
+- Each list's new-item input has its own submit form and an explicit mobile Enter
+  hint. Enter and the return-arrow button add to that list; do not rely on key-up events.
 - Edits save locally before the upload debounce. Malformed responses and delayed
   downloads cannot discard local edits. A valid list with zero items syncs normally.
 - Saves use last-save-wins: an older device can overwrite newer online changes.

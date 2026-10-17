@@ -128,9 +128,11 @@ function finishDrag(index, event) {
         @drop="finishDrag(index + 1, $event)"
       />
       <li class="todo-item">
-        <input type="checkbox" disabled aria-hidden="true" />
-        <ContentInput v-model="draft" label="New item" placeholder="..." @submit="addItem" />
-        <span v-if="draft">&crarr;</span>
+        <form @submit.prevent="addItem">
+          <input type="checkbox" disabled aria-hidden="true" />
+          <ContentInput v-model="draft" label="New item" placeholder="..." enterkeyhint="enter" />
+          <button v-if="draft" class="add-item" type="submit" aria-label="Add item">&crarr;</button>
+        </form>
       </li>
     </ul>
     <SyncStatus
