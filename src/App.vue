@@ -31,6 +31,7 @@ onUnmounted(() => {
     @move="(from, to) => actions.moveItem(id, from, to)"
     @remove="actions.removeList(id)"
     @toggle="actions.toggleOnline(id)"
+    @pin="actions.setPin(id)"
     @retry="actions.retrySync(id)"
     @load="actions.loadOnlineCopy(id)"
     @publish="actions.publishList(id)"

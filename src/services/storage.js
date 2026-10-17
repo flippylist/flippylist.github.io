@@ -18,6 +18,9 @@ export function createStorage(storage) {
         id,
         {
           revision: isValidSyncToken(value?.revision) ? value.revision : null,
+          access: /^[A-Za-z0-9_-]{43}$/.test(value?.access || '') ? value.access : null,
+          pin: /^\d{6}$/.test(value?.pin || '') ? value.pin : null,
+          hasPin: !!value?.hasPin,
           pending: !!value?.pending,
           unpublished: value?.unpublished,
           attempted: !!value?.attempted,

@@ -22,6 +22,17 @@ export function createWorkspace({ storage, api, dialogs, scheduler, random }) {
   });
   const stopWatching = watch(lists, () => sync.flush(), { deep: true });
 
+  function askPin(message, allowEmpty = false) {
+    const answer = dialogs.prompt(message);
+    if (answer === null) return null;
+    const pin = answer.trim();
+    if (!/^\d{6}$/.test(pin) && !(allowEmpty && !pin)) {
+      dialogs.alert('Please enter a six-digit PIN.');
+      return null;
+    }
+    return pin;
+  }
+
   const actions = {
     async addList() {
       const answer = dialogs.prompt('Enter id or leave blank for new list');
@@ -32,8 +43,10 @@ export function createWorkspace({ storage, api, dialogs, scheduler, random }) {
         return;
       }
       if (answer.trim()) {
+        const pin = askPin('Enter the list PIN (leave blank for a list without a PIN)', true);
+        if (pin === null) return;
         try {
-          await sync.import(id);
+          await sync.import(id, pin);
         } catch (error) {
           dialogs.alert('Could not open the list: ' + error.message);
         }
@@ -67,7 +80,23 @@ export function createWorkspace({ storage, api, dialogs, scheduler, random }) {
     },
     toggleOnline(id) {
       if (sync.state(id).deletion === 'deleted') return actions.shareAgain(id);
+      if (!lists[id][0].online && sync.state(id).publication === 'local' && !sync.state(id).pin) {
+        const pin = askPin('Choose a six-digit PIN for adding this list on other devices');
+        if (pin === null) return;
+        sync.state(id).pin = pin;
+      }
       sync.toggle(id);
+    },
+    setPin(id) {
+      const state = sync.state(id);
+      const pin = askPin(
+        state.access
+          ? 'Choose a six-digit PIN for adding this list on other devices'
+          : 'Enter the list PIN (leave blank for a list without a PIN)',
+        !state.access,
+      );
+      if (pin === null) return;
+      return state.access ? sync.setPin(id, pin) : sync.authorize(id, pin);
     },
     retrySync: (id) => sync.load(id),
     publishList(id) {
@@ -76,6 +105,9 @@ export function createWorkspace({ storage, api, dialogs, scheduler, random }) {
           'Publish this device’s copy online? Check that it contains the items you want to keep.',
         )
       ) {
+        const pin = askPin('Choose a six-digit PIN for adding this list on other devices');
+        if (pin === null) return;
+        sync.state(id).pin = pin;
         sync.publish(id);
       }
     },
@@ -110,7 +142,9 @@ export function createWorkspace({ storage, api, dialogs, scheduler, random }) {
           'Share this copy with a new six-character ID? Other devices will need the new ID to sync with it.',
         )
       ) {
-        return sync.shareAgain(id);
+        const pin = askPin('Choose a six-digit PIN for adding this list on other devices');
+        if (pin === null) return;
+        return sync.shareAgain(id, pin);
       }
     },
   };

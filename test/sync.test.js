@@ -85,12 +85,16 @@ test('new six-character list IDs skip collisions in this tab and saved storage',
   assert.equal(b.requests.length, 0, 'new offline lists do not require a server connection');
 });
 
-test('a title-only online copy cannot silently remove all local tasks', async () => {
+test('a valid online list with zero items syncs without an error or an upload', async () => {
   const b = browser();
   b.requests[0].reply(list());
   await b.tick();
-  assert.deepEqual(b.saved().shared, list('Milk'));
-  assert.match(b.workspace.statuses.shared.error, /no items/);
+  assert.deepEqual(copy(b.workspace.lists.shared), list());
+  assert.deepEqual(b.saved().shared, list());
+  assert.equal(b.workspace.statuses.shared.error, '');
+  assert.equal(b.workspace.statuses.shared.ready, true);
+  assert.equal(b.workspace.statuses.shared.pending, false);
+  assert.equal(b.requests.length, 1);
   assert.equal(b.posts().length, 0);
 });
 
@@ -242,9 +246,10 @@ test('a late download cannot recreate a deleted list', async () => {
 
 test('import rejects malformed data and safely encodes the list id', async () => {
   const b = browser({});
-  b.context.prompt = () => 'a&b';
+  b.context.prompt = (message) => (message.includes('PIN') ? '123456' : 'a&b');
   const imported = b.workspace.actions.addList();
-  assert.ok(b.requests[0].url.endsWith('?id=a%26b'));
+  assert.ok(b.requests[0].url.endsWith('/api/join'));
+  assert.equal(JSON.parse(b.requests[0].body).id, 'a&b');
   b.requests[0].reply({ error: 'not found' });
   await imported;
   await b.tick();

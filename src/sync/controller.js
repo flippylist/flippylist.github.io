@@ -38,6 +38,14 @@ export class ListSync {
     this.storage.writeMetadata(id, savedSyncState(this.state(id)));
   }
 
+  rememberAccess(id, online) {
+    const state = this.state(id);
+    state.access = online.access;
+    state.hasPin = !!online.hasPin;
+    state.pin = null;
+    this.remember(id);
+  }
+
   error(id, message = '') {
     const state = this.state(id);
     state.error = message;
@@ -195,12 +203,15 @@ export class ListSync {
         id,
         JSON.parse(data),
         state.publication === 'published' ? state.revision : null,
+        state.access,
+        state.pin || undefined,
       );
+      request.access = saved.access;
       if (!this.isCurrent(id, request)) return;
       state.revision = saved.revision;
       state.publication = 'published';
       state.pending = serialize(this.lists[id]) !== data;
-      this.remember(id);
+      this.rememberAccess(id, saved);
       this.error(id);
     } catch (error) {
       if (this.isCurrent(id, request)) {
@@ -224,9 +235,10 @@ export class ListSync {
         state.ready = true;
         return;
       }
-      const online = await this.api.read(id, state.revision);
+      const online = await this.api.read(id, state.revision, state.access);
       if (!this.isCurrent(id, request)) return;
       this.checkSavedCopy(id);
+      this.rememberAccess(id, online);
       const local = this.lists[id];
       if (!local[0].online) return;
       const remote = serialize(online.list);
@@ -241,9 +253,6 @@ export class ListSync {
         }
         state.pending = current !== remote;
       } else {
-        if (!replace && online.list.length === 1 && local.length > 1) {
-          throw new Error('The online copy has no items. Your local items have been kept.');
-        }
         state.pending = false;
         this.incoming.set(id, remote);
         this.lists[id] = online.list;
@@ -260,14 +269,15 @@ export class ListSync {
     }
   }
 
-  async import(id) {
-    const online = await this.api.read(id);
+  async import(id, pin = '') {
+    const online = await this.api.join(id, pin);
     if (Object.hasOwn(this.lists, id)) return;
     online.list[0].online = true;
     const state = this.state(id);
     state.revision = online.revision;
     state.publication = 'published';
     state.ready = true;
+    this.rememberAccess(id, online);
     this.incoming.set(id, serialize(online.list));
     this.lists[id] = online.list;
     this.flush();
@@ -295,7 +305,12 @@ export class ListSync {
       this.requireSaved(id);
       if (state.publication === 'local') state.publication = 'attempted';
       this.remember(id);
-      const saved = await this.api.save(id, JSON.parse(before), state.conflictRevision);
+      const saved = await this.api.save(
+        id,
+        JSON.parse(before),
+        state.conflictRevision,
+        state.access,
+      );
       if (!this.isCurrent(id, request)) return;
       this.checkSavedCopy(id);
       state.revision = saved.revision;
@@ -305,7 +320,7 @@ export class ListSync {
         this.lists[id] = saved.list;
       }
       state.pending = serialize(this.lists[id]) !== serialize(saved.list);
-      this.remember(id);
+      this.rememberAccess(id, saved);
       this.flush();
       this.error(id);
       state.ready = true;
@@ -354,7 +369,12 @@ export class ListSync {
         // Let the first insert finish before deleting its record.
         if (creation) await creation.done;
         if (!this.isCurrent(id, request)) return;
-        await this.api.remove(id);
+        if (creation?.access) {
+          state.access = creation.access;
+          state.pin = null;
+          this.remember(id);
+        }
+        await this.api.remove(id, state.access);
         if (!this.isCurrent(id, request)) return;
         state.deletion = 'deleted';
         this.remember(id);
@@ -381,7 +401,7 @@ export class ListSync {
     return newListId(new Set([...this.storage.usedIds(), ...Object.keys(this.lists)]), this.random);
   }
 
-  shareAgain(id) {
+  shareAgain(id, pin) {
     const state = this.state(id);
     if (state.deletion !== 'deleted' || !isValidList(this.lists[id])) return;
     try {
@@ -392,6 +412,7 @@ export class ListSync {
       list[0].online = true;
       const next = this.state(newId);
       next.publication = 'local';
+      next.pin = pin;
       next.ready = true;
       this.lists[newId] = list;
       this.flush();
@@ -414,6 +435,42 @@ export class ListSync {
     if (list[0].online) state.ready = state.publication !== 'published';
     this.flush();
     if (list[0].online && !state.ready) this.load(id);
+  }
+
+  async setPin(id, pin) {
+    const state = this.state(id);
+    if (state.activity !== 'idle' || state.publication !== 'published' || state.deletion !== 'none')
+      return;
+    const request = this.begin(id, 'pin');
+    try {
+      const saved = await this.api.setPin(id, pin, state.access);
+      if (!this.isCurrent(id, request)) return;
+      this.rememberAccess(id, saved);
+      this.error(id);
+    } catch (error) {
+      if (this.isCurrent(id, request)) this.failed(id, error, ' The PIN was not confirmed.');
+    } finally {
+      this.finish(id, request);
+    }
+  }
+
+  async authorize(id, pin) {
+    const state = this.state(id);
+    if (state.activity !== 'idle' || !this.lists[id]) return;
+    const request = this.begin(id, 'download');
+    try {
+      const online = await this.api.join(id, pin);
+      if (!this.isCurrent(id, request)) return;
+      state.publication = 'published';
+      state.revision ||= online.revision;
+      this.rememberAccess(id, online);
+      state.ready = true;
+      this.error(id);
+    } catch (error) {
+      if (this.isCurrent(id, request)) this.failed(id, error, ' Your local copy has been kept.');
+    } finally {
+      this.finish(id, request);
+    }
   }
 
   refresh() {

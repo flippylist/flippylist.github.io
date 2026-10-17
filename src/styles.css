@@ -108,6 +108,16 @@ input:focus-visible {
 .sync-toggle.is-offline {
   color: #cccccc;
 }
+.pin-button {
+  margin-left: 5px;
+  padding: 1px 3px;
+  border: 1px solid #dddddd;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
 .remove-item {
   float: right;
   padding: 0;

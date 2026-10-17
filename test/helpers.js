@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 import { createApi } from '../src/services/api.js';
 import { createWorkspace } from '../src/workspace.js';
 
+export const access = 'a'.repeat(43);
 export const copy = (value) => JSON.parse(JSON.stringify(value));
 export const list = (...titles) => [
   { title: 'Shopping', bg: '', online: true },
@@ -19,7 +20,12 @@ export function browser(lists = { shared: list('Milk') }, extraStorage = {}, opt
   const timers = new Map();
   const listeners = new Map();
   let timerId = 0;
-  const context = { crypto, prompt: () => null, confirm: () => true, alert() {} };
+  const context = {
+    crypto,
+    prompt: (message) => (message.includes('PIN') ? '123456' : null),
+    confirm: () => true,
+    alert() {},
+  };
   const api = createApi({
     baseUrl: options.apiBaseUrl || '',
     hostname: options.hostname || 'localhost',
@@ -30,17 +36,30 @@ export function browser(lists = { shared: list('Milk') }, extraStorage = {}, opt
           ...options,
           reject,
           reply(data, status = 200) {
-            const id = new URL(url, 'http://flippy.test').searchParams.get('id');
+            const payload = this.body ? JSON.parse(this.body) : {};
+            const joining = url.endsWith('/api/join');
+            const id = joining
+              ? payload.id
+              : new URL(url, 'http://flippy.test').searchParams.get('id');
             const success = status >= 200 && status < 300;
-            if (success && this.method === 'POST') {
-              const payload = JSON.parse(this.body);
+            if (success && this.method === 'POST' && !joining && !payload.action) {
               serverData.set(id, payload.list);
               revisions.set(id, (revisions.get(id) || 1) + 1);
-              data = { list: payload.list, revision: token(payload.list, revisions.get(id)) };
+              data = {
+                list: payload.list,
+                revision: token(payload.list, revisions.get(id)),
+                access,
+                hasPin: !!payload.pin,
+              };
               status = 200;
             } else if (success && Array.isArray(data)) {
               serverData.set(id, copy(data));
-              data = { list: data, revision: token(data, revisions.get(id) || 1) };
+              data = {
+                list: data,
+                revision: token(data, revisions.get(id) || 1),
+                access,
+                hasPin: joining,
+              };
             }
             resolve({ ok: success, status, json: async () => copy(data) });
           },

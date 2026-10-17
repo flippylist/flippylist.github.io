@@ -19,6 +19,7 @@ const emit = defineEmits([
   'move',
   'remove',
   'toggle',
+  'pin',
   'retry',
   'load',
   'publish',
@@ -94,6 +95,24 @@ function finishDrag(index, event) {
             ></i>
           </button>
           <span v-if="header.online">{{ listId }}</span>
+          <button
+            v-if="status.publication !== 'local' && status.deletion !== 'deleted'"
+            class="pin-button"
+            :disabled="status.activity !== 'idle'"
+            :aria-label="
+              !status.access ? 'Enter list PIN' : status.hasPin ? 'Change list PIN' : 'Set list PIN'
+            "
+            :title="
+              !status.access
+                ? 'Enter PIN'
+                : status.hasPin
+                  ? 'Change PIN for adding this list'
+                  : 'Set PIN for adding this list'
+            "
+            @click="emit('pin')"
+          >
+            PIN
+          </button>
         </span>
       </li>
       <ListItem

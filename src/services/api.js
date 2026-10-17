@@ -23,20 +23,29 @@ function apiOrigin(baseUrl, hostname) {
 }
 
 export function createApi({ baseUrl, hostname, fetch: fetchRequest = globalThis.fetch }) {
-  async function request(id, { method = 'GET', revision = null, list } = {}) {
+  async function request(id, { method = 'GET', revision = null, list, access, pin, action } = {}) {
     const query = new URLSearchParams({ id });
     if (method === 'GET' && revision) query.set('known', revision);
-    const response = await fetchRequest(`${apiOrigin(baseUrl, hostname)}/api/list?${query}`, {
+    const path = action === 'join' ? '/api/join' : `/api/list?${query}`;
+    const response = await fetchRequest(`${apiOrigin(baseUrl, hostname)}${path}`, {
       method,
       credentials: 'omit',
+      headers: {
+        ...(access ? { Authorization: `Bearer ${access}` } : {}),
+        ...(method === 'POST'
+          ? { Accept: 'application/json', 'Content-Type': 'application/json' }
+          : {}),
+      },
       ...(method === 'GET' ? { cache: 'no-store' } : {}),
       ...(method === 'POST'
         ? {
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ list, revision }),
+            body: JSON.stringify(action === 'join' ? { id, pin } : { list, revision, pin, action }),
           }
         : {}),
     });
+    if (response.status === 429) {
+      throw new Error('Too many attempts. Try again in a minute.');
+    }
     const data = await response.json();
     if (!response.ok) {
       const action = { GET: 'Download', POST: 'Upload', DELETE: 'Delete' }[method];
@@ -48,14 +57,21 @@ export function createApi({ baseUrl, hostname, fetch: fetchRequest = globalThis.
     if (method === 'DELETE') {
       if (data?.deleted !== true)
         throw new Error('The server did not confirm deletion. Retry delete.');
-    } else if (!isValidList(data?.list) || !isValidSyncToken(data?.revision)) {
+    } else if (
+      !isValidList(data?.list) ||
+      !isValidSyncToken(data?.revision) ||
+      !/^[A-Za-z0-9_-]{43}$/.test(data?.access || '')
+    ) {
       throw new Error('The server returned an empty or invalid list.');
     }
     return data;
   }
   return {
-    read: (id, revision = null) => request(id, { revision }),
-    save: (id, list, revision) => request(id, { method: 'POST', list, revision }),
-    remove: (id) => request(id, { method: 'DELETE' }),
+    read: (id, revision = null, access) => request(id, { revision, access }),
+    join: (id, pin) => request(id, { method: 'POST', action: 'join', pin }),
+    save: (id, list, revision, access, pin) =>
+      request(id, { method: 'POST', list, revision, access, pin }),
+    remove: (id, access) => request(id, { method: 'DELETE', access }),
+    setPin: (id, pin, access) => request(id, { method: 'POST', action: 'pin', pin, access }),
   };
 }

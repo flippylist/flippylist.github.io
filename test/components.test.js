@@ -3,7 +3,7 @@ import { afterEach, test } from 'vitest';
 import { mount } from '@vue/test-utils';
 import App from '../src/App.vue';
 import ListCard from '../src/components/ListCard.vue';
-import { browser, list } from './helpers.js';
+import { access, browser, list, token } from './helpers.js';
 
 const mounted = [];
 afterEach(() => {
@@ -101,4 +101,20 @@ test('double-clicking the title opens that list’s color picker', async () => {
   };
   await b.wrapper.get('[aria-label="List title"]').trigger('dblclick');
   assert.equal(opened, 1);
+});
+
+test('the PIN button sets a PIN on an existing list through the workspace', async () => {
+  const b = mountApp({ shared: list('Milk') });
+  b.requests[0].reply(list('Milk'));
+  await b.tick();
+  await b.wrapper.get('[aria-label="Set list PIN"]').trigger('click');
+  assert.deepEqual(JSON.parse(b.posts()[0].body), {
+    revision: null,
+    pin: '123456',
+    action: 'pin',
+  });
+  b.posts()[0].reply({ list: list('Milk'), revision: token(list('Milk')), access, hasPin: true });
+  await b.tick();
+  assert.ok(b.wrapper.get('[aria-label="Change list PIN"]').exists());
+  assert.deepEqual(b.saved().shared, list('Milk'));
 });

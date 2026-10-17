@@ -5,6 +5,9 @@ export function createSyncState(saved = {}, list) {
   const deletion = saved.deletePending ? 'pending' : saved.deleted ? 'deleted' : 'none';
   return {
     revision: isValidSyncToken(saved.revision) ? saved.revision : null,
+    access: saved.access || null,
+    pin: saved.pin || null,
+    hasPin: !!saved.hasPin,
     pending: !!saved.pending,
     publication: unpublished ? (saved.attempted ? 'attempted' : 'local') : 'published',
     deletion,
@@ -25,6 +28,9 @@ export function createSyncState(saved = {}, list) {
 export function savedSyncState(state) {
   return {
     revision: state.revision,
+    access: state.access,
+    pin: state.pin,
+    hasPin: state.hasPin,
     pending: state.pending,
     unpublished: state.publication !== 'published',
     attempted: state.publication !== 'local',
